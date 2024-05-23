@@ -143,6 +143,7 @@
     "trailingComma": "es5",
     "useTabs": false
   },
+  "private": true,
   "react-native-builder-bob": {
     "source": "src",
     "output": "lib",
