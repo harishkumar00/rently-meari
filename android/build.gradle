@@ -1,0 +1,159 @@
+import com.android.Version
+
+buildscript {
+  ext {
+    agp_version = '8.0.0'
+    agp_version1 = '8.2.0'
+  }
+
+  // Buildscript is evaluated before everything else so we can't use getExtOrDefault
+  def kotlin_version = rootProject.ext.has("kotlinVersion") ? rootProject.ext.get("kotlinVersion") : project.properties["RentlyMeari_kotlinVersion"]
+
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+    maven {
+      url "https://maven.aliyun.com/repository/public"
+    }
+    maven { url 'https://www.jitpack.io' }
+    flatDir {
+      dirs 'libs'
+    }
+  }
+
+  dependencies {
+    classpath "com.android.tools.build:gradle:$agp_version1"
+    // noinspection DifferentKotlinGradleVersion
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+  }
+}
+
+def isNewArchitectureEnabled() {
+  return rootProject.hasProperty("newArchEnabled") && rootProject.getProperty("newArchEnabled") == "true"
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+if (isNewArchitectureEnabled()) {
+  apply plugin: "com.facebook.react"
+}
+
+def getExtOrDefault(name) {
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["RentlyMeari_" + name]
+}
+
+def getExtOrIntegerDefault(name) {
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["RentlyMeari_" + name]).toInteger()
+}
+
+static def supportsNamespace() {
+  def parsed = Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')
+  def major = parsed[0].toInteger()
+  def minor = parsed[1].toInteger()
+
+  // Namespace support was added in 7.3.0
+  return (major == 7 && minor >= 3) || major >= 8
+}
+
+android {
+  if (supportsNamespace()) {
+    namespace "com.rentlymeari"
+
+    sourceSets {
+      main {
+        manifest.srcFile "src/main/AndroidManifest.xml"
+        jniLibs.srcDirs = ['libs']
+      }
+    }
+  }
+
+  compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
+
+  defaultConfig {
+    minSdkVersion getExtOrIntegerDefault("minSdkVersion")
+    targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = '17'
+  }
+
+  buildFeatures {
+    compose true
+  }
+
+  composeOptions {
+    kotlinCompilerExtensionVersion '1.5.10'
+  }
+
+  packagingOptions {
+    pickFirst '**/lib/arm64-v8a/*.so'
+    pickFirst '**/lib/armeabi-v7a/*.so'
+  }
+
+  lintOptions {
+    disable "GradleCompatible"
+  }
+}
+
+//repositories {
+//  mavenCentral()
+//  google()
+//}
+
+def kotlin_version = getExtOrDefault("kotlinVersion")
+
+dependencies {
+  compileOnly fileTree(dir: 'libs', include: ['*.aar', '*.jar'], exclude: [])
+  compileOnly files('libs\\core-sdk-device-500-20230602.aar')
+  compileOnly files('libs\\core-sdk-meari-500-20230602.aar')
+
+  // For < 0.71, this will be from the local maven repo
+  // For > 0.71, this will be replaced by `com.facebook.react:react-android:$version` by react gradle plugin
+  // noinspection GradleDynamicVersion
+
+  def lifecycle_version = "2.7.0"
+  def nav_version = "2.7.7"
+  def coroutines_version = "1.7.3"
+  def aws_version = "2.16.+"
+
+  implementation "com.facebook.react:react-android:0.74.1"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+  // Meari SDK
+
+  implementation 'com.tencent:mmkv-static:1.0.23'
+  implementation 'com.alibaba:fastjson:1.1.67.android'
+  implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.2'
+  implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+  implementation("com.amazonaws:aws-android-sdk-iot:$aws_version") {
+    exclude group: 'org.eclipse.paho'
+  }
+  implementation("com.amazonaws:aws-android-sdk-mobile-client:$aws_version") { transitive = true }
+  implementation 'io.reactivex.rxjava2:rxjava:2.2.6'
+  implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
+
+  // Jetpack Compose
+  implementation platform('androidx.compose:compose-bom:2024.05.00')
+  implementation 'androidx.compose.ui:ui'
+  implementation 'androidx.compose.ui:ui-graphics'
+  implementation 'androidx.compose.ui:ui-tooling-preview'
+  implementation 'androidx.compose.material3:material3'
+  implementation 'androidx.activity:activity-compose:1.9.0'
+
+  // Navigation
+  implementation "androidx.navigation:navigation-compose:$nav_version"
+}
